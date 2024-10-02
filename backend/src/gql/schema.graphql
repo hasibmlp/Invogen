@@ -1,0 +1,73 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+type Query {
+  invoice(id: ID!): Invoice
+  invoices(
+    first: Int!
+    last: Int
+    after: String
+    before: String
+  ): InvoiceConnection
+}
+
+type Mutation {
+  createInvoice(input: InvoiceInput!): Invoice!
+  updateInvoice(id: ID!, input: InvoiceInput!): Invoice!
+}
+
+type Invoice {
+  id: ID!
+  customerId: ID!
+  items: [InvoiceItem!]!
+  totalAmount: Float!
+  issueDate: String!
+  dueDate: String!
+  status: InvoiceStatus!
+}
+
+type InvoiceItem {
+  id: ID!
+  description: String!
+  quantity: Int!
+  unitPrice: Float!
+  totalPrice: Float!
+}
+
+input InvoiceInput {
+  customerId: ID!
+  items: [InvoiceItemInput!]!
+  dueDate: String!
+}
+
+input InvoiceItemInput {
+  description: String!
+  quantity: Int!
+  unitPrice: Float!
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FULLFILLED
+  PAID
+  CANCELED
+}
+
+type InvoiceConnection {
+  edges: [InvoiceEdge]
+  pageInfo: PageInfo
+}
+
+type InvoiceEdge {
+  cursor: String!
+  node: Invoice!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}

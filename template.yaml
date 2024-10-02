@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  InvoicesTable:
+    Type: AWS::Serverless::SimpleTable
+
+  # Greeter:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: backend/src/
+  #     Handler: app.lambdaHandler
+  #     Runtime: nodejs20.x
+  #     Architectures:
+  #     - x86_64
+
+  InvoiceAppGraphQLApi:
+    Type: AWS::Serverless::GraphQLApi
+    Properties:
+      SchemaUri: ./backend/src/gql/schema.graphql
+      Auth:
+        Type: API_KEY
+      ApiKeys:
+        MyApiKey:
+          Description: my api key
+      DataSources:
+        DynamoDb:
+          Invoices:
+            TableName: !Ref InvoicesTable
+            TableArn: !GetAtt InvoicesTable.Arn
+        # Lambda:
+        #   Greeter:
+        #     FunctionArn: !GetAtt Greeter.Arn
+      Functions:
+        preprocessInvoiceItem:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: 1.0.0
+          DataSource: NONE
+          CodeUri: ./backend/src/gql/invoice/preprocessInvoiceItem.js
+        createInvoiceItem:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: 1.0.0
+          DataSource: Invoices
+          CodeUri: ./backend/src/gql/invoice/createInvoiceItem.js
+        getInvoiceFromTable:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: 1.0.0
+          DataSource: Invoices
+          CodeUri: ./backend/src/gql/invoice/getInvoiceFromTable.js
+        getInvoicesFromTable:
+          Runtime:
+            Name: APPSYNC_JS
+            Version: 1.0.0
+          DataSource: Invoices
+          CodeUri: ./backend/src/gql/invoice/getInvoicesFromTable.js
+        # greet:
+        #   Runtime:
+        #     Name: APPSYNC_JS
+        #     Version: 1.0.0
+        #   DataSource: Greeter
+        #   CodeUri: ./backend/src/gql/greet.js
+      Resolvers:
+        Mutation:
+          createInvoice:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: 1.0.0
+            Pipeline:
+            - preprocessInvoiceItem
+            - createInvoiceItem
+        Query:
+          invoice:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: 1.0.0
+            Pipeline:
+            - getInvoiceFromTable
+          invoices:
+            Runtime:
+              Name: APPSYNC_JS
+              Version: 1.0.0
+            Pipeline:
+            - getInvoicesFromTable
+
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  InvoiceAppGraphQLApi:
+    Description: InvoiceAppGraphQLApi endpoint URL for Prod environment
+    Value: !GetAtt InvoiceAppGraphQLApi.GraphQLUrl
+  InvoiceAppGraphQLApiMyApiKey:
+    Description: API Key for InvoiceAppGraphQLApi
+    Value: !GetAtt InvoiceAppGraphQLApiMyApiKey.ApiKey
+
+
+Globals:
+  Function:
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
